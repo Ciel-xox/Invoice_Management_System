@@ -27,9 +27,9 @@ export async function POST(
   const fd = await req.formData();
   const file = fd.get("file");
   const uploaderName = (fd.get("uploader_name") ?? "").toString().trim();
-  // メールアドレスは URL 発行時に紐付けた contact_email を使う
-  // （アップロード画面では入力させない）
-  const uploaderEmail = company.contact_email;
+  // アップロード担当者のメールアドレス（毎回入力してもらう）
+  // 企業マスタの contact_email は URL 発行時の紐付け用で、ここでは使わない
+  const uploaderEmail = (fd.get("uploader_email") ?? "").toString().trim();
   const invoiceMonth = (fd.get("invoice_month") ?? "").toString() || null;
   const amtRaw = (fd.get("invoice_amount") ?? "").toString();
   const invoiceAmount = amtRaw ? Number(amtRaw) : null;
@@ -40,9 +40,15 @@ export async function POST(
       { status: 400 },
     );
   }
-  if (!uploaderName) {
+  if (!uploaderName || !uploaderEmail) {
     return NextResponse.json(
-      { error: "担当者名は必須です" },
+      { error: "担当者名とメールアドレスは必須です" },
+      { status: 400 },
+    );
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(uploaderEmail)) {
+    return NextResponse.json(
+      { error: "メールアドレスの形式が正しくありません" },
       { status: 400 },
     );
   }
@@ -77,6 +83,8 @@ export async function POST(
   });
 
   // 3. Google Drive に転送（バックグラウンド扱い）
+  let driveStatus: "done" | "review" = "review";
+  let driveUrl: string | null = null;
   try {
     const drive = await uploadInvoice({
       folderId: company.drive_folder_id,
@@ -84,6 +92,8 @@ export async function POST(
       contentType: file.type,
       data: buf,
     });
+    driveStatus = "done";
+    driveUrl = drive?.webViewLink ?? null;
     await updateUpload(record.id, {
       status: "done",
       drive_file_id: drive?.fileId ?? null,
@@ -94,25 +104,39 @@ export async function POST(
     await updateUpload(record.id, { status: "review" });
   }
 
-  // 4. Slack 通知（運営チーム宛）
+  // 4. Slack 通知（backoffice 宛）
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL?.trim() || `http://localhost:3100`;
+  const monitorUrl = `${baseUrl}/admin/monitor`;
+  const fields = [
+    {
+      label: "担当者",
+      value: uploaderEmail
+        ? `${uploaderName} <${uploaderEmail}>`
+        : uploaderName,
+    },
+    { label: "請求月", value: invoiceMonth ?? "—" },
+    {
+      label: "金額",
+      value:
+        invoiceAmount != null ? `¥${invoiceAmount.toLocaleString()}` : "—",
+    },
+    { label: "ファイル", value: file.name },
+    {
+      label: "Drive 連携",
+      value:
+        driveStatus === "done" && driveUrl
+          ? `✓ <${driveUrl}|Drive で開く>`
+          : driveStatus === "done"
+            ? "✓ ローカル保存（Drive 未連携）"
+            : "⚠ 要確認（Drive 転送失敗）",
+    },
+  ];
   notifySlack({
     title: "請求書を受領しました",
     body: `*${company.name}* から請求書が届きました。`,
-    fields: [
-      {
-        label: "担当者",
-        value: uploaderEmail
-          ? `${uploaderName} <${uploaderEmail}>`
-          : uploaderName,
-      },
-      { label: "請求月", value: invoiceMonth ?? "—" },
-      {
-        label: "金額",
-        value:
-          invoiceAmount != null ? `¥${invoiceAmount.toLocaleString()}` : "—",
-      },
-      { label: "ファイル", value: file.name },
-    ],
+    fields,
+    url: monitorUrl,
   }).catch(() => {});
 
   return NextResponse.json({ ok: true, upload_id: record.id });

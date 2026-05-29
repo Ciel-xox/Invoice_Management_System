@@ -7,12 +7,20 @@ export const dynamic = "force-dynamic";
 
 const SHOW_DEV_NAV = process.env.NODE_ENV !== "production";
 
-type Props = { params: Promise<{ token: string }> };
+type Props = {
+  params: Promise<{ token: string }>;
+  searchParams: Promise<{ prefilled?: string }>;
+};
 
-export default async function UploadPage({ params }: Props) {
+export default async function UploadPage({ params, searchParams }: Props) {
   const { token } = await params;
+  const { prefilled } = await searchParams;
   const company = await getCompanyByToken(token);
   if (!company) notFound();
+
+  // 発行直後（?prefilled=1）のときだけ contact_email をプリフィル
+  const prefillEmail =
+    prefilled === "1" && company.contact_email ? company.contact_email : "";
 
   if (company.status === "disabled") {
     return (
@@ -33,5 +41,11 @@ export default async function UploadPage({ params }: Props) {
     );
   }
 
-  return <UploadClient company={company} showDevNav={SHOW_DEV_NAV} />;
+  return (
+    <UploadClient
+      company={company}
+      showDevNav={SHOW_DEV_NAV}
+      prefillEmail={prefillEmail}
+    />
+  );
 }

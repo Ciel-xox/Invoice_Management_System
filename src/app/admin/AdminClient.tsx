@@ -39,8 +39,9 @@ export default function AdminClient({ companies, baseUrl }: Props) {
       const { company } = await res.json();
       setName("");
       setEmail("");
-      // 発行直後にそのまま該当企業のアップロード画面へ遷移
-      router.push(`/u/${company.token}`);
+      // 発行直後にそのまま該当企業のアップロード画面へ遷移。
+      // ?prefilled=1 を付けて、メアド欄に contact_email をプリフィルさせる。
+      router.push(`/u/${company.token}?prefilled=1`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "発行に失敗しました");
     } finally {
