@@ -10,7 +10,8 @@ import path from "node:path";
 import crypto from "node:crypto";
 
 const USE_BLOB = !!process.env.BLOB_READ_WRITE_TOKEN;
-const UPLOAD_DIR = path.join(process.cwd(), "uploads");
+// Vercel のサーバーレス環境では process.cwd() は読み取り専用のため /tmp を使う
+const UPLOAD_DIR = process.env.VERCEL ? "/tmp/uploads" : path.join(process.cwd(), "uploads");
 
 export type StoredBlob = {
   url: string; // ダウンロード可能 URL
