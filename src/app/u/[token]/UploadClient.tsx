@@ -92,6 +92,7 @@ export default function UploadClient({
             onClick={() => {
               setDone(false);
               setName("");
+              setEmail(prefillEmail);
               setAmount("");
               setFile(null);
             }}
