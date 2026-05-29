@@ -17,7 +17,8 @@ import crypto from "node:crypto";
 import type { Company, Upload, UploadStatus } from "./types";
 
 const USE_POSTGRES = !!process.env.POSTGRES_URL;
-const DATA_DIR = path.join(process.cwd(), "data");
+// Vercel のサーバーレス環境では process.cwd() は読み取り専用のため /tmp を使う
+const DATA_DIR = process.env.VERCEL ? "/tmp/data" : path.join(process.cwd(), "data");
 const DATA_FILE = path.join(DATA_DIR, "db.json");
 
 type DBShape = {
