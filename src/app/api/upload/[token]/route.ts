@@ -27,7 +27,9 @@ export async function POST(
   const fd = await req.formData();
   const file = fd.get("file");
   const uploaderName = (fd.get("uploader_name") ?? "").toString().trim();
-  const uploaderEmail = (fd.get("uploader_email") ?? "").toString().trim();
+  // メールアドレスは URL 発行時に紐付けた contact_email を使う
+  // （アップロード画面では入力させない）
+  const uploaderEmail = company.contact_email;
   const invoiceMonth = (fd.get("invoice_month") ?? "").toString() || null;
   const amtRaw = (fd.get("invoice_amount") ?? "").toString();
   const invoiceAmount = amtRaw ? Number(amtRaw) : null;
@@ -38,9 +40,9 @@ export async function POST(
       { status: 400 },
     );
   }
-  if (!uploaderName || !uploaderEmail) {
+  if (!uploaderName) {
     return NextResponse.json(
-      { error: "担当者名とメールアドレスは必須です" },
+      { error: "担当者名は必須です" },
       { status: 400 },
     );
   }
@@ -97,7 +99,12 @@ export async function POST(
     title: "請求書を受領しました",
     body: `*${company.name}* から請求書が届きました。`,
     fields: [
-      { label: "担当者", value: `${uploaderName} <${uploaderEmail}>` },
+      {
+        label: "担当者",
+        value: uploaderEmail
+          ? `${uploaderName} <${uploaderEmail}>`
+          : uploaderName,
+      },
       { label: "請求月", value: invoiceMonth ?? "—" },
       {
         label: "金額",

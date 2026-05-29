@@ -1,14 +1,16 @@
 /**
- * Google Drive 連携。
+ * Google Drive 連携（Service Account + Shared Drive 方式）。
  *
- * 本番では GOOGLE_SERVICE_ACCOUNT_JSON (サービスアカウントの JSON 鍵) と
- * GOOGLE_DRIVE_PARENT_FOLDER_ID を設定する。サービスアカウントに対して
- * 親フォルダを「編集者」として共有しておく必要がある。
+ * Workspace の Shared Drive を使うと、サービスアカウントでも容量制限なく
+ * 自動アップロードが可能（My Drive と違い Shared Drive 自体がクォータを持つ）。
  *
- * - 企業を作成するとき、その企業専用のサブフォルダを自動で作る（要件 8-1）。
- * - 請求書を受領するとき、そのフォルダにファイルをアップロードする。
+ * 必要な env (.env.local):
+ *   GOOGLE_SERVICE_ACCOUNT_JSON     ← Workspace 配下の SA JSON（1 行）
+ *   GOOGLE_DRIVE_PARENT_FOLDER_ID   ← Shared Drive の ID または配下フォルダの ID
  *
- * env が無いプレビュー環境では mock として動き、コンソールにログだけ出す。
+ * Shared Drive の場合は files.create / files.get に
+ *   supportsAllDrives: true
+ * を付ける必要がある。
  */
 
 import { Readable } from "node:stream";
@@ -31,7 +33,9 @@ async function getDriveClient() {
  * 企業ごとの専用フォルダを親フォルダ配下に作成する。
  * 返り値は Drive 上のフォルダ ID。
  */
-export async function createCompanyFolder(companyName: string): Promise<string | null> {
+export async function createCompanyFolder(
+  companyName: string,
+): Promise<string | null> {
   if (!ENABLED) {
     console.log("[drive:mock] createCompanyFolder", { companyName });
     return null;
@@ -44,6 +48,7 @@ export async function createCompanyFolder(companyName: string): Promise<string |
       parents: [PARENT_FOLDER_ID!],
     },
     fields: "id",
+    supportsAllDrives: true, // Shared Drive 対応
   });
   return res.data.id ?? null;
 }
@@ -78,6 +83,7 @@ export async function uploadInvoice(input: {
       body: Readable.from(input.data),
     },
     fields: "id, webViewLink",
+    supportsAllDrives: true, // Shared Drive 対応
   });
   return {
     fileId: res.data.id ?? "",

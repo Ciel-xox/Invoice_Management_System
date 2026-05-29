@@ -9,21 +9,27 @@ type Props = {
   stats: {
     total_today: number;
     drive_done_today: number;
+    local_only_today: number;
     pending_today: number;
   };
   uploads: Upload[];
   driveEnabled: boolean;
 };
 
-const STATUS_CONF: Record<
-  Upload["status"],
-  { label: string; color: string }
-> = {
-  done: { label: "✓ Drive 保存済み", color: "#0f6e56" },
-  uploading: { label: "↻ アップロード中", color: "#185fa5" },
-  review: { label: "⚠ 要確認", color: "#854f0b" },
-  failed: { label: "✕ 失敗", color: "#a32d2d" },
-};
+function statusLabel(
+  status: Upload["status"],
+  driveEnabled: boolean,
+  driveFileId: string | null,
+): { label: string; color: string } {
+  if (status === "uploading") return { label: "↻ アップロード中", color: "#185fa5" };
+  if (status === "review") return { label: "⚠ 要確認", color: "#854f0b" };
+  if (status === "failed") return { label: "✕ 失敗", color: "#a32d2d" };
+  // status === 'done' の場合は実際に Drive に上がったかで分岐
+  if (driveEnabled && driveFileId) {
+    return { label: "✓ Drive 保存済み", color: "#0f6e56" };
+  }
+  return { label: "● ローカル保存（Drive 未連携）", color: "#854f0b" };
+}
 
 export default function MonitorClient({
   stats,
@@ -60,7 +66,7 @@ export default function MonitorClient({
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-3 mb-5">
+      <div className="grid grid-cols-4 gap-3 mb-5">
         <div className="metric">
           <p className="metric-label">本日の受領</p>
           <p className="metric-num">{stats.total_today}</p>
@@ -68,6 +74,10 @@ export default function MonitorClient({
         <div className="metric">
           <p className="metric-label">Drive 連携済み</p>
           <p className="metric-num text-success">{stats.drive_done_today}</p>
+        </div>
+        <div className="metric">
+          <p className="metric-label">ローカルのみ</p>
+          <p className="metric-num text-warning">{stats.local_only_today}</p>
         </div>
         <div className="metric">
           <p className="metric-label">処理中・要確認</p>
@@ -104,11 +114,13 @@ export default function MonitorClient({
           </p>
         )}
         {uploads.map((u) => {
-          const cfg = STATUS_CONF[u.status];
+          const cfg = statusLabel(u.status, driveEnabled, u.drive_file_id);
           const time = new Date(u.created_at).toLocaleTimeString("ja-JP", {
             hour: "2-digit",
             minute: "2-digit",
           });
+          // 保存先 URL: Drive にあれば Drive、なければローカル blob URL
+          const openUrl = u.drive_file_url ?? u.blob_url;
           return (
             <div
               key={u.id}
@@ -116,9 +128,14 @@ export default function MonitorClient({
             >
               <span className="text-xl text-ink-3">📄</span>
               <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-medium m-0 truncate">
+                <a
+                  href={openUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[13px] font-medium m-0 truncate block no-underline text-ink hover:text-info"
+                >
                   {u.filename}
-                </p>
+                </a>
                 <p className="text-xs text-ink-2 mt-0.5">
                   {u.company_name} ・ {time}
                   {u.invoice_amount != null

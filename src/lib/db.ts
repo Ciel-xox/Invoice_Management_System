@@ -30,7 +30,12 @@ type DBShape = {
 async function readLocal(): Promise<DBShape> {
   try {
     const raw = await fs.readFile(DATA_FILE, "utf8");
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw) as DBShape;
+    // 旧データに contact_email が無ければ空文字で補完（後方互換）
+    for (const c of parsed.companies) {
+      if (typeof c.contact_email !== "string") c.contact_email = "";
+    }
+    return parsed;
   } catch {
     return { companies: [], uploads: [] };
   }
@@ -55,12 +60,17 @@ async function ensurePostgresSchema() {
     CREATE TABLE IF NOT EXISTS companies (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
+      contact_email TEXT NOT NULL DEFAULT '',
       token TEXT NOT NULL UNIQUE,
       drive_folder_id TEXT,
       drive_folder_name TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'active',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+  `;
+  // 既存テーブルに contact_email カラムが無ければ追加（migration）
+  await sql`
+    ALTER TABLE companies ADD COLUMN IF NOT EXISTS contact_email TEXT NOT NULL DEFAULT ''
   `;
   await sql`
     CREATE TABLE IF NOT EXISTS uploads (
@@ -119,12 +129,14 @@ export async function getCompanyByToken(token: string): Promise<Company | null> 
 
 export async function createCompany(input: {
   name: string;
+  contact_email: string;
   drive_folder_name: string;
   drive_folder_id: string | null;
 }): Promise<Company> {
   const company: Company = {
     id: newId(),
     name: input.name,
+    contact_email: input.contact_email,
     token: newToken(),
     drive_folder_id: input.drive_folder_id,
     drive_folder_name: input.drive_folder_name,
@@ -136,10 +148,11 @@ export async function createCompany(input: {
     const sql = await getSql();
     await sql`
       INSERT INTO companies
-        (id, name, token, drive_folder_id, drive_folder_name, status, created_at)
+        (id, name, contact_email, token, drive_folder_id, drive_folder_name, status, created_at)
       VALUES
-        (${company.id}, ${company.name}, ${company.token}, ${company.drive_folder_id},
-         ${company.drive_folder_name}, ${company.status}, ${company.created_at})
+        (${company.id}, ${company.name}, ${company.contact_email}, ${company.token},
+         ${company.drive_folder_id}, ${company.drive_folder_name},
+         ${company.status}, ${company.created_at})
     `;
     return company;
   }
@@ -263,6 +276,7 @@ export async function listUploads(limit = 50): Promise<Upload[]> {
 export async function dailyStats(): Promise<{
   total_today: number;
   drive_done_today: number;
+  local_only_today: number;
   pending_today: number;
 }> {
   const all = await listUploads(500);
@@ -270,8 +284,17 @@ export async function dailyStats(): Promise<{
   const todays = all.filter((u) => u.created_at.startsWith(today));
   return {
     total_today: todays.length,
-    drive_done_today: todays.filter((u) => u.status === "done").length,
-    pending_today: todays.filter((u) => u.status === "uploading" || u.status === "review").length,
+    // 実際に Drive にファイル ID が紐付いたものだけカウント
+    drive_done_today: todays.filter(
+      (u) => u.status === "done" && !!u.drive_file_id,
+    ).length,
+    // status=done だが Drive に上がっていない = ローカル保存のみ
+    local_only_today: todays.filter(
+      (u) => u.status === "done" && !u.drive_file_id,
+    ).length,
+    pending_today: todays.filter(
+      (u) => u.status === "uploading" || u.status === "review",
+    ).length,
   };
 }
 
@@ -281,16 +304,19 @@ export async function seedIfEmpty(): Promise<void> {
   if (companies.length > 0) return;
   await createCompany({
     name: "株式会社サンプル",
+    contact_email: "sample@example.com",
     drive_folder_name: "請求書 / サンプル",
     drive_folder_id: null,
   });
   await createCompany({
     name: "テスト商事株式会社",
+    contact_email: "keiri@test-shoji.co.jp",
     drive_folder_name: "請求書 / テスト商事",
     drive_folder_id: null,
   });
   await createCompany({
     name: "山田工業",
+    contact_email: "yamada@yamada-kogyo.jp",
     drive_folder_name: "請求書 / 山田工業",
     drive_folder_id: null,
   });

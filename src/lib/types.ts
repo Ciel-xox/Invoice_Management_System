@@ -1,9 +1,10 @@
 export type Company = {
   id: string;
   name: string;
+  contact_email: string; // 企業担当者のメールアドレス（URL 配布・通知用）
   token: string;
   drive_folder_id: string | null; // 自動作成された Drive フォルダ ID
-  drive_folder_name: string; // 表示用
+  drive_folder_name: string; // 表示用（企業名から自動生成）
   status: "active" | "disabled";
   created_at: string;
 };

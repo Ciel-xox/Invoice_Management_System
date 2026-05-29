@@ -11,7 +11,6 @@ const MAX_SIZE = 10 * 1024 * 1024; // 10MB
 
 export default function UploadClient({ company, showDevNav }: Props) {
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
   const [month, setMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -40,14 +39,13 @@ export default function UploadClient({ company, showDevNav }: Props) {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!file || !name.trim() || !email.trim()) return;
+    if (!file || !name.trim()) return;
     setSubmitting(true);
     setError(null);
     try {
       const fd = new FormData();
       fd.append("file", file);
       fd.append("uploader_name", name);
-      fd.append("uploader_email", email);
       fd.append("invoice_month", month);
       fd.append("invoice_amount", amount.replace(/[^0-9]/g, ""));
       const res = await fetch(`/api/upload/${company.token}`, {
@@ -132,19 +130,17 @@ export default function UploadClient({ company, showDevNav }: Props) {
             />
           </div>
 
-          <div className="mb-4">
-            <label className="label">
-              メールアドレス <span className="text-danger">*</span>
-            </label>
-            <input
-              className="input"
-              type="email"
-              placeholder="example@company.co.jp"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
+          {company.contact_email && (
+            <div className="mb-4">
+              <label className="label">送信先メールアドレス</label>
+              <div className="text-[13px] text-ink-2 bg-surface2 px-3 py-2 rounded">
+                {company.contact_email}
+              </div>
+              <p className="text-[11px] text-ink-3 mt-1">
+                ※ 受領確認・差戻し連絡はこのアドレス宛に送信されます。変更が必要な場合はご担当者までお問い合わせください。
+              </p>
+            </div>
+          )}
 
           <div className="flex gap-3 mb-5">
             <div className="flex-1">
@@ -226,7 +222,7 @@ export default function UploadClient({ company, showDevNav }: Props) {
             type="submit"
             className="btn-primary w-full mt-6"
             style={{ height: 42, fontSize: 14 }}
-            disabled={submitting || !file || !name.trim() || !email.trim()}
+            disabled={submitting || !file || !name.trim()}
           >
             <span style={{ marginRight: 6 }}>✈</span>
             {submitting ? "送信中..." : "請求書を送信する"}

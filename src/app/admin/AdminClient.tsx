@@ -13,27 +13,36 @@ type Props = {
 export default function AdminClient({ companies, baseUrl }: Props) {
   const router = useRouter();
   const [name, setName] = useState("");
-  const [folder, setFolder] = useState("");
+  const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function issueUrl(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
     setSubmitting(true);
+    setError(null);
     try {
       const res = await fetch("/api/companies", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
-          drive_folder_name: folder.trim() || `請求書 / ${name.trim()}`,
+          contact_email: email.trim(),
         }),
       });
-      if (!res.ok) throw new Error("failed");
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error ?? "発行に失敗しました");
+      }
+      const { company } = await res.json();
       setName("");
-      setFolder("");
-      router.refresh();
+      setEmail("");
+      // 発行直後にそのまま該当企業のアップロード画面へ遷移
+      router.push(`/u/${company.token}`);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "発行に失敗しました");
     } finally {
       setSubmitting(false);
     }
@@ -92,23 +101,31 @@ export default function AdminClient({ companies, baseUrl }: Props) {
           </div>
           <div className="flex-[2] min-w-[160px]">
             <label className="text-xs text-ink-2 block mb-1.5">
-              保存先 Google Drive フォルダ
+              担当者メールアドレス
             </label>
             <input
               className="input"
-              placeholder="/請求書/サンプル"
-              value={folder}
-              onChange={(e) => setFolder(e.target.value)}
+              type="email"
+              placeholder="keiri@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
           </div>
           <button
             type="submit"
-            className="btn whitespace-nowrap"
+            className="btn-primary whitespace-nowrap"
             disabled={submitting || !name.trim()}
           >
             {submitting ? "発行中..." : "発行する"}
           </button>
         </div>
+        {error && (
+          <p className="text-xs text-danger mt-2">{error}</p>
+        )}
+        <p className="text-xs text-ink-3 mt-2">
+          発行すると、その企業の請求書アップロード画面に遷移します。Drive
+          フォルダは企業名から自動作成されます。
+        </p>
       </form>
 
       {/* 一覧 */}
@@ -146,8 +163,13 @@ export default function AdminClient({ companies, baseUrl }: Props) {
               const shortUrl = url.replace(/^https?:\/\//, "");
               return (
                 <tr key={c.id}>
-                  <td className="px-3.5 py-3 border-t border-line font-medium">
-                    {c.name}
+                  <td className="px-3.5 py-3 border-t border-line">
+                    <p className="font-medium m-0">{c.name}</p>
+                    {c.contact_email && (
+                      <p className="text-xs text-ink-3 mt-0.5">
+                        {c.contact_email}
+                      </p>
+                    )}
                   </td>
                   <td className="px-3.5 py-3 border-t border-line">
                     <span className="mono">{shortUrl}</span>
