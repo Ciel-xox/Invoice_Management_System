@@ -82,7 +82,6 @@ export default function UploadClient({ company, showDevNav }: Props) {
             onClick={() => {
               setDone(false);
               setName("");
-              setEmail("");
               setAmount("");
               setFile(null);
             }}
