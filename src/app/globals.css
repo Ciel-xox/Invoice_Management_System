@@ -1,0 +1,88 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body {
+    background: theme("colors.bg");
+    color: theme("colors.ink.DEFAULT");
+    font-family: theme("fontFamily.sans");
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@layer components {
+  .card {
+    background: theme("colors.surface");
+    border: 0.5px solid theme("colors.line");
+    border-radius: theme("borderRadius.lg");
+  }
+  .section-label {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 500;
+    color: theme("colors.info.DEFAULT");
+    background: theme("colors.info.bg");
+    padding: 3px 12px;
+    border-radius: theme("borderRadius.DEFAULT");
+  }
+  .btn {
+    @apply h-[38px] px-4 text-[13px] font-medium rounded inline-flex items-center justify-center transition;
+    border: 0.5px solid theme("colors.line2");
+    background: transparent;
+    color: theme("colors.ink.DEFAULT");
+  }
+  .btn:hover {
+    background: theme("colors.surface2");
+  }
+  .btn-primary {
+    @apply h-[38px] px-4 text-[13px] font-medium rounded inline-flex items-center justify-center transition;
+    background: theme("colors.info.DEFAULT");
+    color: #fff;
+    border: none;
+  }
+  .btn-primary:hover {
+    background: theme("colors.info.strong");
+  }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .input {
+    @apply w-full h-9 px-3 text-sm rounded bg-white;
+    border: 0.5px solid theme("colors.line2");
+    font-family: inherit;
+  }
+  .input:focus {
+    outline: 2px solid theme("colors.info.DEFAULT");
+    outline-offset: -1px;
+  }
+  .label {
+    @apply block text-[13px] font-medium mb-1.5;
+  }
+  .pill {
+    @apply inline-block text-[11px] px-2.5 py-0.5 rounded;
+  }
+  .mono {
+    font-family: theme("fontFamily.mono");
+    font-size: 12px;
+    color: theme("colors.ink.2");
+  }
+  .metric {
+    background: theme("colors.surface2");
+    border-radius: theme("borderRadius.DEFAULT");
+    padding: 1rem;
+  }
+  .metric .metric-label {
+    font-size: 13px;
+    color: theme("colors.ink.2");
+    margin: 0;
+  }
+  .metric .metric-num {
+    font-size: 24px;
+    font-weight: 500;
+    margin-top: 4px;
+  }
+}

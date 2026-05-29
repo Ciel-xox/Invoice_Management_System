@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "invoice-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3100,
+      "cwd": "/Users/yasubamomoka/Documents/dev/Invoice_Management_System"
+    }
+  ]
+}
